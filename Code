@@ -1,0 +1,104 @@
+Source Code:  
+#include <LiquidCrystal.h>  
+#define TIMEOUT 2000  
+int R1 = 8; int R2 = 9; int R3 = 10;  
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2); unsigned int Voltage; uint8_t fault=0; void title(void) 
+ {     lcd.clear();    lcd.print("  UNDER GROUND  ");               lcd.setCursor(0,1);         
+lcd.print("FAULT DETECTION ");  
+}  char s;  void setup() {    int l;  
+  pinMode(R1,O UTPUT);         digitalWrite(R1,LOW);   pinMode(R2,OUTPUT);   digitalWrite(R2,LOW);   pinMode(R3,OUTPUT);   digitalWrite(R3,LOW);   lcd.begin(16, 2);   lcd.setCursor(0, 0);   lcd.print("LCD READY ... ");   delay(1000);   title();  delay(2000);    
+//Serial.begin(9600);   
+Serial.begin(115200);  
+SendCommand("AT+RST", "Ready");  
+ SendCommand("AT+CWMODE=2","OK");  
+SendCommand("AT+CWSAP="undercable_001","12345678",5,3","O 
+K");  
+  SendCommand("AT+CIPMUX=1","OK");  
+}  int cntr=1000;  void loop() {   
+if(cntr++ >= 1000) {      cntr = 0;  
+Voltage = (analogRead(A0));     lcd.clear();     lcd.print("Voltage:        ");     lcd.setCursor(8,0);     lcd.print(Voltage);     lcd.setCursor(0,1);     //delay(1000);     fault = 0;     if(Voltage < 75){       digitalWrite(R1,LOW);       digitalWrite(R2,LOW);       digitalWrite(R3,LOW);       lcd.print("    No Fault    ");  
+  //    delay(1000);  
+}   else if((Voltage >= 75) && (Voltage <= 85)){       
+digitalWrite(R1,HIGH);       digitalWrite(R2,LOW);       digitalWrite(R3,LOW);       lcd.print("  R Fault : 
+1Km  ");  
+  //    delay(1000);       fault |= 1<<0;    
+           }  
+else if((Voltage >= 95) && (Voltage <= 105)){//93,100       digitalWrite(R1,LOW);      digitalWrite(R2,HIGH);        digitalWrite(R3,LOW);        lcd.print("  Y Fault : 2Km ");    /delay(1000);        fault |= 1<<1;  
+ }      else if((Voltage >= 115) && (Voltage <= 119)){              digitalWrite(R1,LOW);       digitalWrite(R2,LOW);       digitalWrite(R3,HIGH);       lcd.print("  B Fault : 
+3Km ");  
+  //delay(1000);       fault |= 1<<2;  
+ }  
+    else if((Voltage >= 120) && (Voltage <= 125)){       digitalWrite(R1,HIGH);       digitalWrite(R2,HIGH);       digitalWrite(R3,LOW);      lcd.print("RY Fault:1Km,2Km");  
+  //    delay(1000);       fault |= (1<<0 | 1<<1);  
+ }  
+    else if((Voltage >= 248) && (Voltage <= 255)){       digitalWrite(R1,LOW);       digitalWrite(R2,HIGH);       digitalWrite(R3,HIGH);        lcd.print("YB Fault:2Km,3Km");  
+  //    delay(1000);       fault |= (1<<1 | 1<<2);  
+    }  
+    else if((Voltage >= 153) && (Voltage <= 160)){       digitalWrite(R1,HIGH);       
+digitalWrite(R2,LOW);       digitalWrite(R3,HIGH);       
+ lcd.print("RB Fault:1Km,3Km");  
+  //    delay(1000);        fault |= (1<<0 | 1<<2);  
+ }      else if(Voltage > 490){       digitalWrite(R1,HIGH);       digitalWrite(R2,HIGH);       digitalWrite(R3,HIGH);       lcd.print("RYBFault:1K,2K,3K");  
+  //    delay(1000);       fault |= (1<<0 | 1<<1 | 1<<2);  
+    }   
+ }      
+if(Serial.find((char *)"+IPD,"))  
+    {  
+      char webpage[1024];        delay(100);        int connectionId = Serial.read()-48;  /* We are subtracting 48 from  the output because the read() function returns the ASCII decimal value and the first decimal number which is 0 starts at 48*/        int indx = 0;  
+      strcpy(webpage+indx,"<h1>Underground Cable Fault Checking System</h1><html>");         strcpy(webpage+indx,"<meta http-equiv=\"refresh\"  
+content=\"10\">");  indx = strlen(webpage);        if(fault == 0) {          strcpy(webpage+indx,"<body><center><h2>No Cable      Fault Detected"); indx = strlen(webpage);  
+      }  
+ 
+      else  
+{  
+        strcpy(webpage+indx,"<body><center><h2>Cable Fault Detected  at ");  
+indx = strlen(webpage);  
+        if(fault & 1<<0)           strcpy(webpage+indx,"1Km Distance"); 
+indx = strlen(webpage);  
+        if(fault & 1<<1) {            if(fault & 1<<0)  strcpy(webpage+indx,", ");  indx = strlen(webpage);            strcpy(webpage+indx,"2Km Distance");  indx = strlen(webpage);  
+        }  
+        if(fault & 1<<2) 
+ {           
+ if((fault & 1<<0) || (fault & 1<<0))  strcpy(webpage+indx,"and "); indx 
+= strlen(webpage);            strcpy(webpage+indx,"3Km Distance");            indx = strlen(webpage);  
+        }  
+      }  
+      strcpy(webpage+indx,"</h2</body></html>");       indx = strlen(webpage);        indx = strlen(webpage)  
+      String closeCommand = "AT+CIPCLOSE=";        closeCommand+=connectionId; // append connection id       closeCommand+="\r\n"; 
+       Serial.print("AT+CIPCLOSE=");  
+      Serial.println(connectionId);  
+       }  
+  }  }  char serial_rx(void)  {    while(Serial.available() == 0);    return Serial.read();  
+}  char serial1_rx(void) 
+{   
+while(Serial.availabl e() == 0); 
+   return 
+Serial.read();  }  void serial_tx(char ch) 
+{  
+  Serial.print(ch);  
+}  void serial_str(char *str) 
+{  
+  Serial.print(str);  
+}  void lcd_str(char l,char p,char *str)  
+{    if(l == 1)     lcd.setCursor(p-1,0);   else if(l == 2)     lcd.setCursor(p-1,1);   while(*str != '\0'){    lcd.print(*str);     str++;  
+  } 
+ }  
+boolean SendCommand(String cmd, String ack){   Serial.println(cmd); // Send "AT+" command to module   if (!echoFind(ack)) // timed out waiting for ack string     return true; // ack blank or ack found  
+}  boolean echoFind(String keyword) {  byte current_char = 0;   byte keyword_length =keyword.length();  long deadline = millis() + TIMEOUT;   while(millis() < deadline) 
+{    if (Serial.available()) {     char ch = Serial.read();     //Serial.write(ch);      if (ch == keyword[current_char])       if (++current_char == keyword_length) 
+{  
+       //Serial.println();            return true;  
+      }  
+    }  
+  }    
+}  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
